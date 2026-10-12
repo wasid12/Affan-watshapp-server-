@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AFFAN AUTOMATION TOOL - RED EDITION</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #080000; color: #ff3355; min-height: 100vh; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+    .container { width: 100%; max-width: 600px; background: #140204; border: 2px solid #ff0033; border-radius: 12px; padding: 25px; box-shadow: 0 0 25px rgba(255, 0, 51, 0.4); margin-bottom: 20px; }
+    h1 { text-align: center; color: #ff0033; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px #ff0033; margin-bottom: 5px; }
+    .owner-tag { text-align: center; color: #ffcc00; font-weight: bold; font-size: 14px; margin-bottom: 20px; }
+    .card { background: #1f0407; border: 1px solid #ff0033; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+    h3 { color: #ff6666; margin-bottom: 10px; font-size: 16px; text-transform: uppercase; }
+    label { display: block; font-size: 13px; color: #aa5555; margin-bottom: 5px; }
+    input, textarea, select { width: 100%; padding: 10px; margin-bottom: 12px; background: #2b060a; border: 1px solid #ff0033; border-radius: 6px; color: #fff; font-size: 14px; outline: none; }
+    button { width: 100%; padding: 12px; background: #ff0033; border: none; border-radius: 6px; color: #fff; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.3s; box-shadow: 0 0 10px #ff0033; }
+    button:hover { background: #cc0029; box-shadow: 0 0 20px #ff0033; }
+    .pairing-box { text-align: center; font-size: 22px; font-weight: bold; color: #ffcc00; letter-spacing: 3px; padding: 10px; background: #2b060a; border: 1px dashed #ff0033; border-radius: 6px; margin-top: 10px; }
+    .logs-box { height: 120px; overflow-y: auto; background: #050000; border: 1px solid #aa5555; padding: 8px; font-family: monospace; font-size: 12px; color: #ff8888; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>❖ AFFAN TOOL ❖</h1>
+    <div class="owner-tag">OWNER: AFFAN | +91830799802</div>
+
+    <!-- Step 1: Login & Pair -->
+    <div class="card">
+      <h3>1. WHATSAPP CONNECTION</h3>
+      <label>Enter WhatsApp Phone Number (With Country Code)</label>
+      <input type="text" id="phone" placeholder="91830799802">
+      <button onclick="getPairingCode()">GET PAIRING CODE</button>
+      <div id="pairingContainer" style="display:none; margin-top:10px;">
+        <label>Your Pairing Code:</label>
+        <div class="pairing-box" id="pairingCode">WAITING...</div>
+      </div>
+    </div>
+
+    <!-- Step 2: Target & Automation -->
+    <div class="card">
+      <h3>2. AUTOMATION SETUP</h3>
+      <label>Target Number or Group ID (e.g. 919876543210 or xxx@g.us)</label>
+      <input type="text" id="target" placeholder="Target Number or Group JID">
+
+      <label>Message Prefix / Hater Name (Optional)</label>
+      <input type="text" id="prefix" placeholder="[AFFAN BRAND]">
+
+      <label>Messages (One Message Per Line)</label>
+      <textarea id="messages" rows="5" placeholder="Enter message 1&#10;Enter message 2&#10;Enter message 3"></textarea>
+
+      <label>Delay / Speed (In Seconds)</label>
+      <input type="number" id="speed" value="5" min="1">
+
+      <button onclick="startAutomation()" style="margin-bottom: 8px;">🚀 START AUTOMATION</button>
+      <button onclick="stopAutomation()" style="background: #550011; box-shadow: none;">🛑 STOP AUTOMATION</button>
+    </div>
+
+    <!-- Step 3: Logs -->
+    <div class="card">
+      <h3>3. LIVE LOGS</h3>
+      <div class="logs-box" id="logs">System Ready...</div>
+    </div>
+  </div>
+
+  <script>
+    let currentSessionId = '';
+
+    function getAuthToken() {
+      return localStorage.getItem('affan_auth_token') || '';
+    }
+
+    async function getPairingCode() {
+      const phone = document.getElementById('phone').value;
+      if (!phone) return alert('Phone number daalna zaroori hai!');
+
+      const res = await fetch('/api/login?token=' + getAuthToken(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        currentSessionId = data.sessionId;
+        document.getElementById('pairingContainer').style.display = 'block';
+        checkCode();
+      } else {
+        alert(data.message || 'Error creating session');
+      }
+    }
+
+    async function checkCode() {
+      if (!currentSessionId) return;
+      const res = await fetch('/api/pairing-code/' + currentSessionId + '?token=' + getAuthToken());
+      const data = await res.json();
+
+      if (data.success && data.pairingCode) {
+        document.getElementById('pairingCode').innerText = data.pairingCode;
+      } else {
+        setTimeout(checkCode, 2000);
+      }
+    }
+
+    async function startAutomation() {
+      if (!currentSessionId) return alert('Pehle WhatsApp connect (Pairing Code) karein!');
+      const target = document.getElementById('target').value;
+      const prefix = document.getElementById('prefix').value;
+      const speed = document.getElementById('speed').value;
+      const rawMsgs = document.getElementById('messages').value;
+      const messages = rawMsgs.split('\n').filter(m => m.trim());
+
+      if (!target || messages.length === 0) return alert('Target number aur minimum 1 message daalein!');
+
+      const res = await fetch('/api/start-automation?token=' + getAuthToken(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: currentSessionId, target, prefix, messages, speed })
+      });
+      const data = await res.json();
+      alert(data.message);
+    }
+
+    async function stopAutomation() {
+      if (!currentSessionId) return alert('Koi active session nahi hai!');
+      const res = await fetch('/api/stop-automation?token=' + getAuthToken(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: currentSessionId })
+      });
+      const data = await res.json();
+      alert(data.message);
+    }
+  </script>
+</body>
+</html>
