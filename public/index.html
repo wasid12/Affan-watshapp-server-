@@ -67,15 +67,11 @@
   <script>
     let currentSessionId = '';
 
-    function getAuthToken() {
-      return localStorage.getItem('affan_auth_token') || '';
-    }
-
     async function getPairingCode() {
       const phone = document.getElementById('phone').value;
       if (!phone) return alert('Phone number daalna zaroori hai!');
 
-      const res = await fetch('/api/login?token=' + getAuthToken(), {
+      const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone })
@@ -93,7 +89,7 @@
 
     async function checkCode() {
       if (!currentSessionId) return;
-      const res = await fetch('/api/pairing-code/' + currentSessionId + '?token=' + getAuthToken());
+      const res = await fetch('/api/pairing-code/' + currentSessionId);
       const data = await res.json();
 
       if (data.success && data.pairingCode) {
@@ -113,7 +109,7 @@
 
       if (!target || messages.length === 0) return alert('Target number aur minimum 1 message daalein!');
 
-      const res = await fetch('/api/start-automation?token=' + getAuthToken(), {
+      const res = await fetch('/api/start-automation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: currentSessionId, target, prefix, messages, speed })
@@ -124,7 +120,7 @@
 
     async function stopAutomation() {
       if (!currentSessionId) return alert('Koi active session nahi hai!');
-      const res = await fetch('/api/stop-automation?token=' + getAuthToken(), {
+      const res = await fetch('/api/stop-automation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: currentSessionId })
