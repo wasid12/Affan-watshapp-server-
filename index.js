@@ -345,12 +345,6 @@ async function connectWA(phone, sessionId) {
           ];
 
 
-          /*
-           * Start queue.
-           * Processor itself controls
-           * the exact message delay.
-           */
-
           processQueue(
             sessionId
           );
@@ -389,10 +383,6 @@ async function connectWA(phone, sessionId) {
           ];
 
 
-          /*
-           * Clear pending timer.
-           */
-
           if (
             queueTimers[sessionId]
           ) {
@@ -412,10 +402,6 @@ async function connectWA(phone, sessionId) {
             sessionId
           ] = false;
 
-
-          /*
-           * Auto Exponential Reconnect Guard
-           */
 
           const attempts = (reconnectAttempts[sessionId] || 0) + 1;
           reconnectAttempts[sessionId] = attempts;
@@ -827,12 +813,6 @@ app.post(
     );
 
 
-    /*
-     * Start processor immediately.
-     * It will respect each item's
-     * configured delay.
-     */
-
     processQueue(
       sessionId
     );
@@ -945,7 +925,6 @@ async function processQueue(
     sessionId
   ] = true;
 
-  /* Queue Stalled Watchdog */
   const watchdog = setTimeout(() => {
     if (queueProcessing[sessionId]) {
       queueProcessing[sessionId] = false;
@@ -1139,4 +1118,366 @@ async function processQueue(
                 );
 
 
-             
+              const delayMs =
+                delaySeconds * 1000;
+
+
+              console.log(
+                chalk.red.bold(
+                  `⏳ [AFFAN] Next message in ${delaySeconds} second(s)`
+                )
+              );
+
+
+              queueTimers[
+                sessionId
+              ] = setTimeout(
+                () => {
+
+                  delete queueTimers[
+                    sessionId
+                  ];
+
+                  processQueue(
+                    sessionId
+                  );
+
+                },
+                delayMs
+              );
+
+            }
+          );
+
+
+        } catch (error) {
+
+          console.log(
+            chalk.bgRed.white.bold(
+              ` 🚨 [AFFAN] Message send error: `
+            ),
+            error.message
+          );
+
+
+          db.run(
+            `
+            UPDATE messageQueue
+            SET isActive = 0
+            WHERE id = ?
+            `,
+            [item.id],
+            () => {
+
+              clearTimeout(watchdog);
+              queueProcessing[
+                sessionId
+              ] = false;
+
+
+              queueTimers[
+                sessionId
+              ] = setTimeout(
+                () => {
+
+                  delete queueTimers[
+                    sessionId
+                  ];
+
+                  processQueue(
+                    sessionId
+                  );
+
+                },
+                1000
+              );
+
+            }
+          );
+
+        }
+
+      }
+    );
+
+  } catch (error) {
+
+    console.log(
+      chalk.bgRed.white.bold(
+        ` 🚨 [AFFAN] Queue processor error: `
+      ),
+      error.message
+    );
+
+
+    queueProcessing[
+      sessionId
+    ] = false;
+
+  }
+
+}
+
+
+/* ================================
+   SESSIONS
+================================ */
+
+app.get(
+  '/api/sessions',
+  (req, res) => {
+
+    db.all(
+      `
+      SELECT *
+      FROM sessions
+      ORDER BY rowid DESC
+      `,
+      [],
+      (error, rows) => {
+
+        if (error) {
+
+          return res.json({
+
+            success: false,
+
+            message:
+              error.message
+
+          });
+
+        }
+
+
+        res.json({
+
+          success: true,
+
+          sessions:
+            rows
+
+        });
+
+      }
+    );
+
+  }
+);
+
+
+/* ================================
+   GROUPS
+================================ */
+
+app.get(
+  '/api/groups/:sessionId',
+  async (req, res) => {
+
+    try {
+
+      const sessionId =
+        req.params.sessionId;
+
+
+      const socket =
+        sockets[sessionId];
+
+
+      if (!socket) {
+
+        return res.json({
+
+          success: false,
+
+          message:
+            'WhatsApp session is not connected'
+
+        });
+
+      }
+
+
+      const groups =
+        await socket.groupFetchAllParticipating();
+
+
+      const groupList =
+        Object.values(groups || {})
+          .map(group => ({
+
+            id:
+              group.id,
+
+            subject:
+              group.subject || 'Unnamed Group'
+
+          }))
+          .sort(
+            (a, b) =>
+              a.subject.localeCompare(
+                b.subject
+              )
+          );
+
+
+      res.json({
+
+        success: true,
+
+        groups:
+          groupList
+
+      });
+
+    } catch (error) {
+
+      console.log(
+        chalk.red.bold(
+          '🚨 [AFFAN] Group fetch error:'
+        ),
+        error.message
+      );
+
+
+      res.json({
+
+        success: false,
+
+        message:
+          error.message
+
+      });
+
+    }
+
+  }
+);
+
+
+/* ================================
+   LOGS
+================================ */
+
+app.get(
+  '/api/logs/:sessionId',
+  (req, res) => {
+
+    db.all(
+      `
+      SELECT *
+      FROM sentLogs
+      WHERE sessionId = ?
+      ORDER BY id DESC
+      LIMIT 100
+      `,
+      [
+        req.params.sessionId
+      ],
+      (error, rows) => {
+
+        if (error) {
+
+          return res.json({
+
+            success: false,
+
+            message:
+              error.message
+
+          });
+
+        }
+
+
+        res.json({
+
+          success: true,
+
+          logs:
+            rows
+
+        });
+
+      }
+    );
+
+  }
+);
+
+
+/* ================================
+   HOME
+================================ */
+
+app.get(
+  '/',
+  (req, res) => {
+
+    res.sendFile(
+      path.join(
+        __dirname,
+        'public',
+        'index.html'
+      )
+    );
+
+  }
+);
+
+
+/* ================================
+   SERVER
+================================ */
+
+app.listen(
+  PORT,
+  '0.0.0.0',
+  () => {
+
+    console.log('');
+
+    console.log(
+      chalk.red.bold(
+        '🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻🔻'
+      )
+    );
+
+    console.log(
+      chalk.redBright.bold(
+        '          🔴  AFFAN AUTOMATION TOOL (RED EDITION)  🔴          '
+      )
+    );
+
+    console.log(
+      chalk.red.bold(
+        '         🔥 OWNER NAME: AFFAN 🔥          '
+      )
+    );
+
+    console.log(
+      chalk.white.bold(
+        '     📞 WHATSAPP / CONTACT: +91830799802     '
+      )
+    );
+
+    console.log(
+      chalk.redBright.bold(
+        '     🔒 PASSWORD PROTECTED: AFFANMARK376     '
+      )
+    );
+
+    console.log(
+      chalk.red.bold(
+        `       🌐 WHATSAPP SERVER ONLINE | PORT: ${PORT}`
+      )
+    );
+
+    console.log(
+      chalk.red.bold(
+        '🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺🔺'
+      )
+    );
+
+  }
+);
