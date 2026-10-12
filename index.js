@@ -26,7 +26,6 @@ app.use(
   )
 );
 
-
 /* ================================
    DATABASE
 ================================ */
@@ -71,7 +70,6 @@ db.serialize(() => {
 
 });
 
-
 /* ================================
    MEMORY
 ================================ */
@@ -83,7 +81,6 @@ const queueProcessing = {};
 const connectingSessions = {};
 const reconnectAttempts = {};
 
-
 /* ================================
    PHONE CLEANER
 ================================ */
@@ -94,7 +91,6 @@ function cleanPhone(phone) {
     .replace(/\D/g, '');
 
 }
-
 
 /* ================================
    WHATSAPP CONNECTION
@@ -127,7 +123,6 @@ async function connectWA(phone, sessionId) {
 
     }
 
-
     const {
       state,
       saveCreds
@@ -135,11 +130,9 @@ async function connectWA(phone, sessionId) {
       sessionPath
     );
 
-
     const {
       version
     } = await fetchLatestBaileysVersion();
-
 
     const socket = makeWASocket({
 
@@ -168,9 +161,7 @@ async function connectWA(phone, sessionId) {
 
     });
 
-
     sockets[sessionId] = socket;
-
 
     /* ================================
        SAVE CREDENTIALS
@@ -180,7 +171,6 @@ async function connectWA(phone, sessionId) {
       'creds.update',
       saveCreds
     );
-
 
     /* ================================
        CONNECTION UPDATE
@@ -195,7 +185,6 @@ async function connectWA(phone, sessionId) {
           lastDisconnect
         } = update;
 
-
         if (
           connection === 'connecting'
         ) {
@@ -207,7 +196,6 @@ async function connectWA(phone, sessionId) {
           );
 
         }
-
 
         if (
           connection === 'open'
@@ -221,7 +209,6 @@ async function connectWA(phone, sessionId) {
             )
           );
 
-
           db.run(
             `
             UPDATE sessions
@@ -231,23 +218,19 @@ async function connectWA(phone, sessionId) {
             [sessionId]
           );
 
-
           delete pairingCodes[
             sessionId
           ];
 
-
           delete connectingSessions[
             sessionId
           ];
-
 
           processQueue(
             sessionId
           );
 
         }
-
 
         if (
           connection === 'close'
@@ -259,7 +242,6 @@ async function connectWA(phone, sessionId) {
             )
           );
 
-
           db.run(
             `
             UPDATE sessions
@@ -269,16 +251,13 @@ async function connectWA(phone, sessionId) {
             [sessionId]
           );
 
-
           delete sockets[
             sessionId
           ];
 
-
           delete connectingSessions[
             sessionId
           ];
-
 
           if (
             queueTimers[sessionId]
@@ -294,11 +273,9 @@ async function connectWA(phone, sessionId) {
 
           }
 
-
           queueProcessing[
             sessionId
           ] = false;
-
 
           const attempts = (reconnectAttempts[sessionId] || 0) + 1;
           reconnectAttempts[sessionId] = attempts;
@@ -338,7 +315,6 @@ async function connectWA(phone, sessionId) {
       }
     );
 
-
     /* ================================
        PAIRING CODE
     ================================= */
@@ -349,7 +325,6 @@ async function connectWA(phone, sessionId) {
 
       const number =
         cleanPhone(phone);
-
 
       if (!number) {
 
@@ -368,7 +343,6 @@ async function connectWA(phone, sessionId) {
           )
         );
 
-
         setTimeout(
           async () => {
 
@@ -380,17 +354,14 @@ async function connectWA(phone, sessionId) {
                 )
               );
 
-
               const code =
                 await socket.requestPairingCode(
                   number
                 );
 
-
               pairingCodes[
                 sessionId
               ] = code;
-
 
               console.log(
                 chalk.red.bold(
@@ -410,7 +381,6 @@ async function connectWA(phone, sessionId) {
                 )
               );
 
-
             } catch (error) {
 
               console.log(
@@ -419,7 +389,6 @@ async function connectWA(phone, sessionId) {
                 ),
                 error.message
               );
-
 
               pairingCodes[
                 sessionId
@@ -437,7 +406,6 @@ async function connectWA(phone, sessionId) {
       }
 
     }
-
 
     return socket;
 
@@ -460,7 +428,6 @@ async function connectWA(phone, sessionId) {
 
 }
 
-
 /* ================================
    LOGIN
 ================================ */
@@ -476,7 +443,6 @@ app.post(
           req.body.phone
         );
 
-
       if (!phone) {
 
         return res.json({
@@ -490,10 +456,8 @@ app.post(
 
       }
 
-
       const sessionId =
         `session_${Date.now()}`;
-
 
       db.run(
         `
@@ -507,12 +471,10 @@ app.post(
         ]
       );
 
-
       await connectWA(
         phone,
         sessionId
       );
-
 
       res.json({
 
@@ -525,11 +487,9 @@ app.post(
 
       });
 
-
     } catch (error) {
 
       console.error(error);
-
 
       res.json({
 
@@ -545,7 +505,6 @@ app.post(
   }
 );
 
-
 /* ================================
    PAIRING CODE
 ================================ */
@@ -557,12 +516,10 @@ app.get(
     const sessionId =
       req.params.sessionId;
 
-
     const code =
       pairingCodes[
         sessionId
       ];
-
 
     if (!code) {
 
@@ -576,7 +533,6 @@ app.get(
       });
 
     }
-
 
     if (
       typeof code === 'object' &&
@@ -597,7 +553,6 @@ app.get(
 
     }
 
-
     res.json({
 
       success: true,
@@ -612,7 +567,6 @@ app.get(
 
   }
 );
-
 
 /* ================================
    START AUTOMATION
@@ -629,7 +583,6 @@ app.post(
       messages = [],
       speed = 5
     } = req.body;
-
 
     if (
       !sessionId ||
@@ -649,13 +602,11 @@ app.post(
 
     }
 
-
     const pending =
       messages.filter(
         message =>
           String(message).trim()
       );
-
 
     if (
       pending.length === 0
@@ -672,13 +623,11 @@ app.post(
 
     }
 
-
     const delaySeconds =
       Math.max(
         1,
         Number(speed) || 5
       );
-
 
     pending.forEach(
       message => {
@@ -709,11 +658,9 @@ app.post(
       }
     );
 
-
     processQueue(
       sessionId
     );
-
 
     res.json({
 
@@ -730,7 +677,6 @@ app.post(
   }
 );
 
-
 /* ================================
    STOP AUTOMATION
 ================================ */
@@ -742,7 +688,6 @@ app.post(
     const {
       sessionId
     } = req.body;
-
 
     if (!sessionId) {
 
@@ -757,7 +702,6 @@ app.post(
 
     }
 
-
     db.run(
       `
       UPDATE messageQueue
@@ -766,7 +710,6 @@ app.post(
       `,
       [sessionId]
     );
-
 
     if (
       queueTimers[sessionId]
@@ -782,11 +725,9 @@ app.post(
 
     }
 
-
     queueProcessing[
       sessionId
     ] = false;
-
 
     res.json({
 
@@ -799,7 +740,6 @@ app.post(
 
   }
 );
-
 
 /* ================================
    QUEUE PROCESSOR
@@ -817,7 +757,6 @@ async function processQueue(
 
   }
 
-
   queueProcessing[
     sessionId
   ] = true;
@@ -829,12 +768,10 @@ async function processQueue(
     }
   }, 45000);
 
-
   try {
 
     const socket =
       sockets[sessionId];
-
 
     if (!socket) {
 
@@ -846,7 +783,6 @@ async function processQueue(
       return;
 
     }
-
 
     db.get(
       `
@@ -881,7 +817,6 @@ async function processQueue(
 
         }
 
-
         if (!item) {
 
           clearTimeout(watchdog);
@@ -893,12 +828,10 @@ async function processQueue(
 
         }
 
-
         try {
 
           const target =
             String(item.target || '').trim();
-
 
           if (!target) {
 
@@ -927,24 +860,20 @@ async function processQueue(
 
           }
 
-
           const chatId =
             target.endsWith('@g.us')
               ? target
               : `${cleanPhone(target)}@s.whatsapp.net`;
 
-
           const fullMsg =
             `${item.prefix || ''} ${item.message}`
               .trim();
-
 
           console.log(
             chalk.red.bold(
               `🚀 [AFFAN] Sending message #${item.id} to ${target}...`
             )
           );
-
 
           await socket.sendMessage(
             chatId,
@@ -953,13 +882,11 @@ async function processQueue(
             }
           );
 
-
           console.log(
             chalk.redBright.bold(
               `🔴✨ [AFFAN] Message sent successfully!`
             )
           );
-
 
           db.run(
             `
@@ -978,7 +905,6 @@ async function processQueue(
             ]
           );
 
-
           db.run(
             `
             UPDATE sessions
@@ -988,7 +914,6 @@ async function processQueue(
             `,
             [sessionId]
           );
-
 
           db.run(
             `
@@ -1007,24 +932,20 @@ async function processQueue(
                 sessionId
               ] = false;
 
-
               const delaySeconds =
                 Math.max(
                   1,
                   Number(item.speed) || 5
                 );
 
-
               const delayMs =
                 delaySeconds * 1000;
-
 
               console.log(
                 chalk.red.bold(
                   `⏳ [AFFAN] Next message in ${delaySeconds} second(s)`
                 )
               );
-
 
               queueTimers[
                 sessionId
@@ -1046,7 +967,6 @@ async function processQueue(
             }
           );
 
-
         } catch (error) {
 
           console.log(
@@ -1055,7 +975,6 @@ async function processQueue(
             ),
             error.message
           );
-
 
           db.run(
             `
@@ -1070,7 +989,6 @@ async function processQueue(
               queueProcessing[
                 sessionId
               ] = false;
-
 
               queueTimers[
                 sessionId
@@ -1106,7 +1024,6 @@ async function processQueue(
       error.message
     );
 
-
     queueProcessing[
       sessionId
     ] = false;
@@ -1114,7 +1031,6 @@ async function processQueue(
   }
 
 }
-
 
 /* ================================
    SESSIONS
@@ -1146,7 +1062,6 @@ app.get(
 
         }
 
-
         res.json({
 
           success: true,
@@ -1162,7 +1077,6 @@ app.get(
   }
 );
 
-
 /* ================================
    GROUPS
 ================================ */
@@ -1176,10 +1090,8 @@ app.get(
       const sessionId =
         req.params.sessionId;
 
-
       const socket =
         sockets[sessionId];
-
 
       if (!socket) {
 
@@ -1194,10 +1106,8 @@ app.get(
 
       }
 
-
       const groups =
         await socket.groupFetchAllParticipating();
-
 
       const groupList =
         Object.values(groups || {})
@@ -1217,7 +1127,6 @@ app.get(
               )
           );
 
-
       res.json({
 
         success: true,
@@ -1236,7 +1145,6 @@ app.get(
         error.message
       );
 
-
       res.json({
 
         success: false,
@@ -1250,7 +1158,6 @@ app.get(
 
   }
 );
-
 
 /* ================================
    LOGS
@@ -1286,7 +1193,6 @@ app.get(
 
         }
 
-
         res.json({
 
           success: true,
@@ -1302,7 +1208,6 @@ app.get(
   }
 );
 
-
 /* ================================
    HOME
 ================================ */
@@ -1314,4 +1219,14 @@ app.get(
     res.sendFile(
       path.join(
         __dirname,
-        'public
+        'public',
+        'index.html'
+      )
+    );
+
+  }
+);
+
+/* ================================
+   SERVER
+=
